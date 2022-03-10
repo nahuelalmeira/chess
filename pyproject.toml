@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=50", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project.dependencies]
+pandas = {}
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
