@@ -1,7 +1,9 @@
-from typing import Literal
+from typing import Literal, Union
+from black import InvalidInput
 
 import pandas as pd
 import igraph as ig
+import networkx as nx
 
 from chessnet.utils import ARTIFACTS_DIR
 
@@ -24,17 +26,34 @@ def csv_to_edgelist(
     g.write_edgelist(str(ARTIFACTS_DIR / name))
 
 
-def read_edgelist(database: str, directed: bool = False) -> ig.Graph:
+def read_edgelist(
+    database: str,
+    directed: bool = False,
+    package: Literal["igraph", "networkx"] = "igraph",
+) -> Union[ig.Graph, nx.Graph]:
     name = database + ("_directed" if directed else "_undirected") + ".edgelist"
     filename = str(ARTIFACTS_DIR / name)
-    g = ig.Graph.Read_Edgelist(filename, directed=directed)
-    return g
+    if package == "igraph":
+        return ig.Graph.Read_Edgelist(filename, directed=directed)
+    elif package == "networkx":
+        return nx.read_edgelist(
+            filename, create_using=nx.DiGraph if directed else nx.Graph
+        )
+    else:
+        raise InvalidInput("package must be in ['igraph', 'networkx']")
 
 
 def read_randomized_edgelist(
     database: str, mode: Literal["fabien-viger"] = "fabien-viger"
 ) -> ig.Graph:
     name = f"{database}_randomized_{mode}.edgelist"
+    filename = str(ARTIFACTS_DIR / name)
+    g = ig.Graph.Read_Edgelist(filename, directed=False)
+    return g
+
+
+def read_rewired_edgelist(database: str, nswap_ecount_times: int = 10) -> ig.Graph:
+    name = f"{database}_rewired_f{nswap_ecount_times}.edgelist"
     filename = str(ARTIFACTS_DIR / name)
     g = ig.Graph.Read_Edgelist(filename, directed=False)
     return g
@@ -52,6 +71,15 @@ def create_randomized_graph(
     g.write_edgelist(str(ARTIFACTS_DIR / name))
 
 
+def create_rewired_graph(database: str, nswap_ecount_times: int = 10):
+    g = read_edgelist(database, directed=False, package="networkx")
+    nswap = nswap_ecount_times * g.number_of_edges()
+    max_tries = 10 * nswap
+    h = nx.double_edge_swap(g, nswap=nswap, max_tries=max_tries)
+    name = f"{database}_rewired_f{nswap_ecount_times}.edgelist"
+    nx.write_edgelist(h, ARTIFACTS_DIR / name, data=False)
+
+
 if __name__ == "__main__":
 
     import argparse
@@ -62,6 +90,9 @@ if __name__ == "__main__":
     parser.add_argument("--directed", action="store_true")
     parser.add_argument("--randomize-portal", action="store_true")
     parser.add_argument("--randomize-otb", action="store_true")
+    parser.add_argument("--rewire-portal", action="store_true")
+    parser.add_argument("--rewire-otb", action="store_true")
+    parser.add_argument("--nswap-frac", type=float, default=10)
     args = parser.parse_args()
 
     if args.parse_otb:
@@ -75,3 +106,11 @@ if __name__ == "__main__":
 
     if args.randomize_portal:
         create_randomized_graph("OM_Portal_201510", mode="fabien-viger")
+
+    if args.rewire_otb:
+        print("Rewiring OTB")
+        create_rewired_graph("OM_OTB_201609", nswap_ecount_times=args.nswap_frac)
+
+    if args.rewire_portal:
+        print("Rewiring Portal")
+        create_rewired_graph("OM_Portal_201510", nswap_ecount_times=args.nswap_frac)
