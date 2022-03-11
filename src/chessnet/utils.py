@@ -3,3 +3,4 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = ROOT_DIR / "data"
 ARTIFACTS_DIR = ROOT_DIR / "artifacts"
+FIGS_DIR = ROOT_DIR / "figures"

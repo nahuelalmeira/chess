@@ -8,9 +8,18 @@ import networkx as nx
 from chessnet.utils import ARTIFACTS_DIR
 
 
-def csv_to_edgelist(
-    database: str, directed: bool = False, drop_missing_elo: bool = True
-) -> None:
+def get_players_degree(database: str) -> pd.DataFrame:
+    g = csv_to_igraph(database, directed=False, drop_missing_elo=True)
+    node_df = pd.DataFrame(
+        {
+            "Player": [v["name"] for v in g.vs()],
+            "k": [v.degree() for v in g.vs()],
+        }
+    ).set_index("Player")
+    return node_df
+
+
+def csv_to_igraph(database: str, directed: bool = False, drop_missing_elo: bool = True):
     df = pd.read_csv(ARTIFACTS_DIR / (database + ".csv"))
     cols_to_dropna = ["White", "Black"]
     if drop_missing_elo:
@@ -22,6 +31,13 @@ def csv_to_edgelist(
         g = g.as_undirected()
     g = g.simplify()
     g.vs.select(_degree=0).delete()  # Remove isolates
+    return g
+
+
+def csv_to_edgelist(
+    database: str, directed: bool = False, drop_missing_elo: bool = True
+) -> None:
+    g = csv_to_igraph(database, directed=directed, drop_missing_elo=drop_missing_elo)
     name = database + ("_directed" if directed else "_undirected") + ".edgelist"
     g.write_edgelist(str(ARTIFACTS_DIR / name))
 
