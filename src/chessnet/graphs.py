@@ -5,6 +5,7 @@ import pandas as pd
 import igraph as ig
 import networkx as nx
 
+from chessnet.statistics import get_players_elo
 from chessnet.utils import ARTIFACTS_DIR
 
 
@@ -96,6 +97,17 @@ def create_rewired_graph(database: str, nswap_ecount_times: int = 10):
     nx.write_edgelist(h, ARTIFACTS_DIR / name, data=False)
 
 
+def write_degree_and_elo(database: str) -> None:
+    df = get_players_degree(database).join(get_players_elo(database), how="inner")
+    filename = ARTIFACTS_DIR / f"{database}_degree_and_elo.csv"
+    df.to_csv(filename)
+
+
+def read_degree_and_elo(database: str) -> pd.DataFrame:
+    filename = ARTIFACTS_DIR / f"{database}_degree_and_elo.csv"
+    return pd.read_csv(filename)
+
+
 if __name__ == "__main__":
 
     import argparse
@@ -108,6 +120,8 @@ if __name__ == "__main__":
     parser.add_argument("--randomize-otb", action="store_true")
     parser.add_argument("--rewire-portal", action="store_true")
     parser.add_argument("--rewire-otb", action="store_true")
+    parser.add_argument("--degree-and-elo-otb", action="store_true")
+    parser.add_argument("--degree-and-elo-portal", action="store_true")
     parser.add_argument("--nswap-frac", type=float, default=10)
     args = parser.parse_args()
 
@@ -130,3 +144,9 @@ if __name__ == "__main__":
     if args.rewire_portal:
         print("Rewiring Portal")
         create_rewired_graph("OM_Portal_201510", nswap_ecount_times=args.nswap_frac)
+
+    if args.degree_and_elo_otb:
+        write_degree_and_elo("OM_OTB_201609")
+
+    if args.degree_and_elo_portal:
+        write_degree_and_elo("OM_Portal_201510")
