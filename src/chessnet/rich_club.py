@@ -1,4 +1,4 @@
-from genericpath import sameopenfile
+import copy
 from typing import List, Tuple, Optional
 
 import igraph as ig
@@ -22,16 +22,20 @@ def compute_rich_club(g: ig.Graph, samples: int = 100) -> pd.DataFrame:
 
 
 def compute_rich_club_elo(g: ig.Graph, samples: int = 100) -> pd.DataFrame:
-    degree_and_elo = [(v.degree(), v["MeanElo"]) for v in g.vs()]
-    sorted_elo = list(zip(*sorted(degree_and_elo, key=lambda x: x[0])))[1]
-
-    h = ig.Graph.Degree_Sequence(g.degree(), method="vl")
-    sorted_nodes = list(
-        zip(*sorted([(v.degree(), v.index) for v in h.vs()], key=lambda x: x[0]))
-    )[1]
-    h.vs["MeanElo"] = [0] * h.vcount()
-    for index, elo in zip(sorted_nodes, sorted_elo):
-        h.vs["MeanElo"][index] = elo
+    # degree_and_elo = [(v.degree(), v["MeanElo"]) for v in g.vs()]
+    # sorted_elo = list(zip(*sorted(degree_and_elo, key=lambda x: x[0])))[1]
+    # h = ig.Graph.Degree_Sequence(g.degree(), method="vl")
+    # sorted_nodes = list(
+    #    zip(*sorted([(v.degree(), v.index) for v in h.vs()], key=lambda x: x[0]))
+    # )[1]
+    # mean_elo = [0] * h.vcount()
+    # for index, elo in zip(sorted_nodes, sorted_elo):
+    #    mean_elo[index] = elo
+    # h.vs["MeanElo"] = mean_elo
+    h = copy.deepcopy(g)
+    shuffled_elo = g.vs["MeanElo"]
+    np.random.shuffle(shuffled_elo)
+    h.vs["MeanElo"] = shuffled_elo
     elo_values, densities = rich_club_elo(g, samples=samples)
     _, rand_densities = rich_club_elo(
         h,
@@ -71,8 +75,8 @@ def rich_club_elo(
     density_values = []
     if elo_values is None:
         elo_values = list(np.linspace(min_elo, max_elo - 1, samples, endpoint=True))
-    for k in elo_values:
-        subgraph_nodes = g.vs.select(MeanElo_gt=k)
+    for elo in elo_values:
+        subgraph_nodes = g.vs.select(MeanElo_gt=elo)
         h = g.subgraph(subgraph_nodes)
         m = h.ecount()
         n = h.vcount()
@@ -88,7 +92,9 @@ def write_rich_club(database: str, samples: int = 100) -> None:
 
 
 def read_rich_club(database: str, samples: int = 100) -> pd.DataFrame:
-    return pd.read_csv(ARTIFACTS_DIR / f"{database}_rich_club_samples{samples}.csv")
+    return pd.read_csv(
+        ARTIFACTS_DIR / f"{database}_rich_club_samples{samples}.csv"
+    ).dropna()
 
 
 def write_rich_club_elo(database: str, samples: int = 100) -> None:

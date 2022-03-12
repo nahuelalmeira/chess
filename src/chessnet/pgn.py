@@ -41,7 +41,7 @@ def pgn_to_csv(
 
     name = Path(pgn_filename).stem
     df = pgn_to_dataframe(pgn_filename, fields, verbose=verbose)
-    df.to_csv(ARTIFACTS_DIR / (name + ".csv"))
+    df.to_csv(ARTIFACTS_DIR / (name + ".csv"), index=False)
 
 
 def parse_om_otb():
