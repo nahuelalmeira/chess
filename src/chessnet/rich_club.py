@@ -5,7 +5,7 @@ import igraph as ig
 import numpy as np
 import pandas as pd
 
-from chessnet.graphs import csv_to_igraph, read_edgelist
+from chessnet.graphs import read_pickle
 from chessnet.utils import ARTIFACTS_DIR
 
 
@@ -86,7 +86,7 @@ def rich_club_elo(
 
 
 def write_rich_club(database: str, samples: int = 100) -> None:
-    g = read_edgelist(database)
+    g = read_pickle(database)
     df = compute_rich_club(g, samples=samples)
     df.to_csv(ARTIFACTS_DIR / f"{database}_rich_club_samples{samples}.csv")
 
@@ -98,7 +98,7 @@ def read_rich_club(database: str, samples: int = 100) -> pd.DataFrame:
 
 
 def write_rich_club_elo(database: str, samples: int = 100) -> None:
-    g = csv_to_igraph(database)
+    g = read_pickle(database)
     df = compute_rich_club_elo(g, samples=samples)
     df.to_csv(ARTIFACTS_DIR / f"{database}_rich_club_elo_samples{samples}.csv")
 
