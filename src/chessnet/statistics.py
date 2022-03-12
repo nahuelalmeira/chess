@@ -20,3 +20,28 @@ def get_players_elo(database: str) -> pd.DataFrame:
     grouped.columns = grouped.columns.droplevel()
     grouped = grouped.rename(columns={"mean": "MeanElo", "std": "StdElo"})
     return grouped
+
+
+def write_elo_data(database: str) -> None:
+    elo_data = get_players_elo(database)
+    elo_data.to_csv(ARTIFACTS_DIR / f"{database}_elo_data.csv")
+
+
+def read_elo_data(database: str) -> pd.DataFrame:
+    return pd.read_csv(ARTIFACTS_DIR / f"{database}_elo_data.csv").set_index("Player")
+
+
+if __name__ == "__main__":
+
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--elo-otb", action="store_true")
+    parser.add_argument("--elo-portal", action="store_true")
+    args = parser.parse_args()
+
+    if args.elo_otb:
+        write_elo_data("OM_OTB_201609")
+
+    if args.elo_portal:
+        write_elo_data("OM_Portal_201510")

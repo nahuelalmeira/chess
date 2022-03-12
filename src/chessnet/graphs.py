@@ -5,19 +5,8 @@ import pandas as pd
 import igraph as ig
 import networkx as nx
 
-from chessnet.statistics import get_players_elo
+from chessnet.statistics import read_elo_data
 from chessnet.utils import ARTIFACTS_DIR
-
-
-def get_players_degree(database: str) -> pd.DataFrame:
-    g = csv_to_igraph(database, directed=False, drop_missing_elo=True)
-    node_df = pd.DataFrame(
-        {
-            "Player": [v["name"] for v in g.vs()],
-            "k": [v.degree() for v in g.vs()],
-        }
-    ).set_index("Player")
-    return node_df
 
 
 def csv_to_igraph(database: str, directed: bool = False, drop_missing_elo: bool = True):
@@ -31,8 +20,25 @@ def csv_to_igraph(database: str, directed: bool = False, drop_missing_elo: bool 
     if not directed:
         g = g.as_undirected()
     g = g.simplify()
+    elo_data = read_elo_data(database)
+    players = elo_data.index
+    players_elo = dict(elo_data.to_dict())
+    g = g.subgraph([v for v in g.vs() if v["name"] in players])
     g.vs.select(_degree=0).delete()  # Remove isolates
+    g.vs["MeanElo"] = [players_elo["MeanElo"][v["name"]] for v in g.vs()]
+    g.vs["StdElo"] = [players_elo["StdElo"][v["name"]] for v in g.vs()]
     return g
+
+
+def get_players_degree(database: str) -> pd.DataFrame:
+    g = csv_to_igraph(database, directed=False, drop_missing_elo=True)
+    node_df = pd.DataFrame(
+        {
+            "Player": [v["name"] for v in g.vs()],
+            "k": [v.degree() for v in g.vs()],
+        }
+    ).set_index("Player")
+    return node_df
 
 
 def csv_to_edgelist(
@@ -98,7 +104,7 @@ def create_rewired_graph(database: str, nswap_ecount_times: int = 10):
 
 
 def write_degree_and_elo(database: str) -> None:
-    df = get_players_degree(database).join(get_players_elo(database), how="inner")
+    df = get_players_degree(database).join(read_elo_data(database), how="inner")
     filename = ARTIFACTS_DIR / f"{database}_degree_and_elo.csv"
     df.to_csv(filename)
 
