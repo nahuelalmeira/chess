@@ -1,3 +1,5 @@
+import string
+
 import pandas as pd
 import igraph as ig
 import numpy as np
@@ -9,3 +11,5 @@ from chessnet.utils import ARTIFACTS_DIR, DATA_DIR, FIGS_DIR, Database
 from chessnet.mpl_settings_v3 import *
 
 database_latex = {"OTB": r"$\mathrm{OTB}$", "Portal": r"$\mathrm{Portal}$"}
+
+panels = [r"$\mathbf{(" + c + r")}$" for c in string.ascii_lowercase]
