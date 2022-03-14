@@ -5,14 +5,14 @@ import igraph as ig
 import numpy as np
 import pandas as pd
 
-from chessnet.graphs import read_pickle
+from chessnet.graphs import read_pickle, read_rewired_graph
 from chessnet.utils import ARTIFACTS_DIR
 
 
-def compute_rich_club(g: ig.Graph, samples: int = 100) -> pd.DataFrame:
+def compute_rich_club(g: ig.Graph, g_ran: ig.Graph, samples: int = 100) -> pd.DataFrame:
     degrees, densities = rich_club(g, samples=samples)
     _, rand_densities = rich_club(
-        ig.Graph.Degree_Sequence(g.degree(), method="vl"),
+        g_ran,
         samples=samples,
         degrees=degrees,
     )
@@ -21,7 +21,9 @@ def compute_rich_club(g: ig.Graph, samples: int = 100) -> pd.DataFrame:
     return df
 
 
-def compute_rich_club_elo(g: ig.Graph, samples: int = 100) -> pd.DataFrame:
+def compute_rich_club_elo(
+    g: ig.Graph, g_ran: ig.Graph, samples: int = 100
+) -> pd.DataFrame:
     # degree_and_elo = [(v.degree(), v["MeanElo"]) for v in g.vs()]
     # sorted_elo = list(zip(*sorted(degree_and_elo, key=lambda x: x[0])))[1]
     # h = ig.Graph.Degree_Sequence(g.degree(), method="vl")
@@ -32,18 +34,23 @@ def compute_rich_club_elo(g: ig.Graph, samples: int = 100) -> pd.DataFrame:
     # for index, elo in zip(sorted_nodes, sorted_elo):
     #    mean_elo[index] = elo
     # h.vs["MeanElo"] = mean_elo
-    h = copy.deepcopy(g)
+    g_ran_elo = copy.deepcopy(g)
     shuffled_elo = g.vs["MeanElo"]
     np.random.shuffle(shuffled_elo)
-    h.vs["MeanElo"] = shuffled_elo
+    g_ran_elo.vs["MeanElo"] = shuffled_elo
     elo_values, densities = rich_club_elo(g, samples=samples)
-    _, rand_densities = rich_club_elo(
-        h,
-        samples=samples,
-        elo_values=elo_values,
+    _, ran_densities = rich_club_elo(g_ran, samples=samples)
+    _, ran_elo_densities = rich_club_elo(g_ran_elo, samples=samples)
+    df = pd.DataFrame(
+        {
+            "elo": elo_values,
+            "phi": densities,
+            "ran_phi": ran_densities,
+            "ran_elo_phi": ran_elo_densities,
+        }
     )
-    df = pd.DataFrame({"elo": elo_values, "phi": densities, "rand_phi": rand_densities})
-    df["rho"] = df.phi / df.rand_phi
+    df["rho_ran"] = df.phi / df.ran_phi
+    df["rho_ran_elo"] = df.phi / df.ran_elo_phi
     return df
 
 
@@ -87,7 +94,8 @@ def rich_club_elo(
 
 def write_rich_club(database: str, samples: int = 100) -> None:
     g = read_pickle(database)
-    df = compute_rich_club(g, samples=samples)
+    g_ran = read_rewired_graph(database, nswap_ecount_times=10.0)
+    df = compute_rich_club(g, g_ran, samples=samples)
     df.to_csv(ARTIFACTS_DIR / f"{database}_rich_club_samples{samples}.csv")
 
 
@@ -99,7 +107,8 @@ def read_rich_club(database: str, samples: int = 100) -> pd.DataFrame:
 
 def write_rich_club_elo(database: str, samples: int = 100) -> None:
     g = read_pickle(database)
-    df = compute_rich_club_elo(g, samples=samples)
+    g_ran = read_rewired_graph(database, nswap_ecount_times=10.0)
+    df = compute_rich_club_elo(g, g_ran, samples=samples)
     df.to_csv(ARTIFACTS_DIR / f"{database}_rich_club_elo_samples{samples}.csv")
 
 
