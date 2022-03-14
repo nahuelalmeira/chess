@@ -6,16 +6,32 @@ import igraph as ig
 import networkx as nx
 
 from chessnet.statistics import read_elo_data
-from chessnet.utils import ARTIFACTS_DIR
+from chessnet.utils import ARTIFACTS_DIR, Database
 
 
-def edges_from_csv(database: str, drop_missing_elo: bool = True) -> pd.DataFrame:
+def edges_from_csv(
+    database: str,
+    drop_missing_elo: bool = True,
+    min_elo: int = 500,
+    max_elo: int = 4000,
+) -> pd.DataFrame:
     df = pd.read_csv(ARTIFACTS_DIR / (database + ".csv"))
+    if (database == Database.Portal) and ("Site" in df.columns):
+        df = df[df.Site == "FICS freechess.org"]
     cols_to_dropna = ["White", "Black"]
     if drop_missing_elo:
+        mask = (
+            (df.WhiteElo >= min_elo)
+            & (df.WhiteElo <= max_elo)
+            & (df.BlackElo >= min_elo)
+            & (df.BlackElo <= max_elo)
+        )
+        df = df[mask]
         cols_to_dropna += ["WhiteElo", "BlackElo"]
     df = df[cols_to_dropna].dropna()
-    edges = df[["White", "Black"]].drop_duplicates()
+    counts = df[["White", "Black"]].value_counts()
+    counts.name = "NUMBER_OF_GAMES"
+    edges = counts.reset_index()
     return edges
 
 
@@ -23,8 +39,10 @@ def csv_to_igraph(
     database: str, directed: bool = False, drop_missing_elo: bool = True
 ) -> ig.Graph:
     edges = edges_from_csv(database, drop_missing_elo=drop_missing_elo)
-    g = ig.Graph.DataFrame(edges, directed=directed)
-    g = g.simplify()
+    g = ig.Graph.DataFrame(edges, directed=True)
+    g = g.simplify(combine_edges="sum")
+    if not directed:
+        g.to_undirected(combine_edges="sum")
     print(g.vcount(), g.ecount())
     elo_data = read_elo_data(database)
     players = elo_data.index
@@ -141,14 +159,14 @@ def read_randomized_edgelist(
     return g
 
 
-def read_rewired_edgelist(database: str, nswap_ecount_times: int = 10) -> ig.Graph:
+def read_rewired_edgelist(database: str, nswap_ecount_times: float = 10.0) -> ig.Graph:
     name = f"{database}_rewired_f{nswap_ecount_times}.edgelist"
     filename = str(ARTIFACTS_DIR / name)
     g = ig.Graph.Read_Edgelist(filename, directed=False)
     return g
 
 
-def read_rewired_graph(database: str, nswap_ecount_times: int = 10) -> ig.Graph:
+def read_rewired_graph(database: str, nswap_ecount_times: float = 10.0) -> ig.Graph:
     name = f"{database}_rewired_f{nswap_ecount_times}.pickle"
     filename = str(ARTIFACTS_DIR / name)
     g = ig.Graph.Read_Pickle(filename)
@@ -167,7 +185,7 @@ def create_randomized_graph(
     g.write_edgelist(str(ARTIFACTS_DIR / name))
 
 
-def _create_rewired_graph(database: str, nswap_ecount_times: int = 10):
+def _create_rewired_graph(database: str, nswap_ecount_times: float = 10.0):
     g = read_edgelist(database, directed=False, package="networkx")
     nswap = nswap_ecount_times * g.number_of_edges()
     max_tries = 10 * nswap
@@ -217,19 +235,25 @@ if __name__ == "__main__":
     parser.add_argument("--nswap-frac", type=float, default=10)
     args = parser.parse_args()
 
+    if args.pickle_otb:
+        write_pickle("OM_OTB_201609", directed=args.directed, package="igraph")
+        # write_pickle("OM_OTB_201609", directed=args.directed, package="networkx")
+
+    if args.pickle_portal:
+        write_pickle("OM_Portal_201510", directed=args.directed, package="igraph")
+        # write_pickle("OM_Portal_201510", directed=args.directed, package="networkx")
+
     if args.parse_otb:
         csv_to_edgelist("OM_OTB_201609", directed=args.directed)
 
     if args.parse_portal:
         csv_to_edgelist("OM_Portal_201510", directed=args.directed)
 
-    if args.pickle_otb:
-        write_pickle("OM_OTB_201609", directed=args.directed, package="igraph")
-        write_pickle("OM_OTB_201609", directed=args.directed, package="networkx")
+    if args.degree_and_elo_otb:
+        write_degree_and_elo("OM_OTB_201609")
 
-    if args.pickle_portal:
-        write_pickle("OM_Portal_201510", directed=args.directed, package="igraph")
-        write_pickle("OM_Portal_201510", directed=args.directed, package="networkx")
+    if args.degree_and_elo_portal:
+        write_degree_and_elo("OM_Portal_201510")
 
     if args.randomize_otb:
         create_randomized_graph("OM_OTB_201609", mode="fabien-viger")
@@ -244,9 +268,3 @@ if __name__ == "__main__":
     if args.rewire_portal:
         print("Rewiring Portal")
         create_rewired_graph("OM_Portal_201510", nswap_ecount_times=args.nswap_frac)
-
-    if args.degree_and_elo_otb:
-        write_degree_and_elo("OM_OTB_201609")
-
-    if args.degree_and_elo_portal:
-        write_degree_and_elo("OM_Portal_201510")

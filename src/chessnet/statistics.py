@@ -3,7 +3,9 @@ import pandas as pd
 from chessnet.utils import ARTIFACTS_DIR
 
 
-def get_players_elo(database: str) -> pd.DataFrame:
+def get_players_elo(
+    database: str, min_elo: int = 500, max_elo: int = 4000
+) -> pd.DataFrame:
     df = pd.read_csv(ARTIFACTS_DIR / f"{database}.csv")
     players = pd.concat(
         [
@@ -16,7 +18,8 @@ def get_players_elo(database: str) -> pd.DataFrame:
         ],
         ignore_index=True,
     ).dropna()
-    grouped = players.groupby(by="Player").agg(["mean", "std"]).dropna()
+    mask = (players.Elo >= min_elo) & (players.Elo <= max_elo)
+    grouped = players[mask].groupby(by="Player").agg(["mean", "std"]).dropna()
     grouped.columns = grouped.columns.droplevel()
     grouped = grouped.rename(columns={"mean": "MeanElo", "std": "StdElo"})
     return grouped
