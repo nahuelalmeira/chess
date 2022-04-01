@@ -7,6 +7,7 @@ import networkx as nx
 
 from chessnet.statistics import read_elo_data
 from chessnet.utils import ARTIFACTS_DIR, Database
+from chessnet.elo import elo_to_category
 
 
 def edges_from_csv(
@@ -216,6 +217,22 @@ def read_degree_and_elo(database: str) -> pd.DataFrame:
     return pd.read_csv(filename)
 
 
+def write_gml(database: str, rewired: bool = False) -> None:
+    g = (
+        read_rewired_graph(database, nswap_ecount_times=10.0)
+        if rewired
+        else read_pickle(database)
+    )
+    gml_filename = database + ("_rewired" if rewired else "") + ".gml"
+    g.vs["label"] = [elo_to_category(elo) for elo in g.vs["MeanElo"]]
+    g.write_gml(str(ARTIFACTS_DIR / gml_filename))
+
+
+def read_gml(database: str, rewired: bool = False) -> ig.Graph:
+    gml_filename = database + ("_rewired" if rewired else "") + ".gml"
+    return ig.Graph.Read_GML(str(ARTIFACTS_DIR / gml_filename))
+
+
 if __name__ == "__main__":
 
     import argparse
@@ -232,6 +249,10 @@ if __name__ == "__main__":
     parser.add_argument("--rewire-otb", action="store_true")
     parser.add_argument("--degree-and-elo-otb", action="store_true")
     parser.add_argument("--degree-and-elo-portal", action="store_true")
+    parser.add_argument("--gml-otb", action="store_true")
+    parser.add_argument("--gml-portal", action="store_true")
+    parser.add_argument("--gml-rewired-otb", action="store_true")
+    parser.add_argument("--gml-rewired-portal", action="store_true")
     parser.add_argument("--nswap-frac", type=float, default=10)
     args = parser.parse_args()
 
@@ -268,3 +289,15 @@ if __name__ == "__main__":
     if args.rewire_portal:
         print("Rewiring Portal")
         create_rewired_graph("OM_Portal_201510", nswap_ecount_times=args.nswap_frac)
+
+    if args.gml_otb:
+        write_gml("OM_OTB_201609")
+
+    if args.gml_portal:
+        write_gml("OM_Portal_201510")
+
+    if args.gml_rewired_otb:
+        write_gml("OM_OTB_201609", rewired=True)
+
+    if args.gml_rewired_portal:
+        write_gml("OM_Portal_201510", rewired=True)

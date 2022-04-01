@@ -1,5 +1,6 @@
 import seaborn as sns
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes  # type: ignore
 from cycler import cycler  # type: ignore
 
@@ -10,6 +11,8 @@ rc_label_size = 28
 rc_legend_size = 26
 mpl.rcParams["figure.figsize"] = (12, 8)
 mpl.rcParams["text.usetex"] = True
+mpl.rcParams["font.family"] = "serif"
+mpl.rcParams["font.serif"] = "Computer Modern"
 mpl.rcParams["lines.linewidth"] = 3
 mpl.rcParams["legend.fontsize"] = rc_legend_size
 mpl.rcParams["savefig.transparent"] = True
@@ -26,3 +29,5 @@ mpl.rcParams["ytick.minor.visible"] = True
 mpl.rcParams["ytick.minor.width"] = 2
 mpl.rcParams["patch.linewidth"] = 1.5
 mpl.rcParams["figure.titlesize"] = 24
+
+plt.rc("text.latex", preamble=r"\usepackage{amsmath}")
